@@ -80,10 +80,77 @@ public class Test_Forge {
 ```
 ```java
 // Fabric 端
-// TODO 没写 之后再补 类似CCA 需要挂EntryPoint(xu_component_lib)和Custom(CCA的Custom) 肯定没Forge方便
+public class Test_Fabric implements ModInitializer {
+    @Override
+    public void onInitialize() {
+        ServerTickEvents.END_SERVER_TICK.register(this::serverTick);
+    }
+
+    public void serverTick(MinecraftServer server) {
+        for (Player player : server.getPlayerList().getPlayers()) {
+            PlayerData playerData = PlayerData.PlayerDataProvider.getComponent(player);
+            if (playerData != null) {
+                playerData.tick++;
+            }
+            PlayerData.PlayerDataProvider.syncComponent(player);
+        }
+    }
+}
+
+public class RegPlayerData implements ComponentInitializer {
+    @Override
+    public void registerComponent() {
+        PlayerData.initComponent();
+    }
+}
+```
+Fabric端的`fabric.mod.json`
+```json
+{
+  "schemaVersion": 1,
+  "id": "test-fabric",
+  "version": "${version}",
+  "name": "Test-Fabric",
+  "description": "",
+  "authors": [
+    {
+      "name": "XuHaoNan",
+      "contact": {
+        "github": "https://github.com/xu233333",
+        "email": "18510478058@163.com"
+      }
+    }
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/test-fabric/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "xu_mod.testfabric.Test_Fabric"
+    ],
+    "xu_component_lib": [
+      "xu_mod.testfabric.RegPlayerData"
+    ]
+  },
+  "custom": {
+    "cardinal-components": [
+      "xu_mod:player_data"
+    ]
+  },
+  "mixins": [
+    "test-fabric.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
 ```
 
-Gradle 配置(没有maven仓库 需要本地导入 等开发的差不多再发布) 把Mod jar放进/libs文件夹里:
+Gradle 配置(没有maven仓库 需要本地导入 等开发的差不多再发布) 把Mod jar放进/libs文件夹里:  
+Forge端直接导入就行
 ```
 repositories {
     flatDir {
@@ -93,5 +160,27 @@ repositories {
 
 dependencies {
     implementation fg.deobf('xu_mod.xu_component_lib:Xu_Component_Lib-1.0.0-alpha:1.0.0-alpha')
+}
+```
+Fabric需要额外依赖CCA(不知道为什么内嵌jar无法加载)
+```
+repositories {
+    maven {
+        name = 'Ladysnake Mods'
+        url = 'https://maven.ladysnake.org/releases'
+    }
+    flatDir {
+        dir 'libs'
+    }
+}
+
+dependencies {
+    modImplementation 'xu_mod.xu_component_lib:Xu_Component_Lib-1.0.0-alpha:1.0.0-alpha'
+    modImplementation("dev.onyxstudios.cardinal-components-api:cardinal-components-base:${cca_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
+    modImplementation("dev.onyxstudios.cardinal-components-api:cardinal-components-entity:${cca_version}") {
+        exclude(group: "net.fabricmc.fabric-api")
+    }
 }
 ```
