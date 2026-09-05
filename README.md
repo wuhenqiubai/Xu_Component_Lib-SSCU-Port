@@ -1,3 +1,5 @@
+## 此处是面对ShapeShifterCurse-UnofficialPort的移植，本Fork仅进行高版本移植，所有功能版权归属原作者Xu233333所有。
+
 算是SSC双端版本开发的第1步 如果失败了SSC双端版本的开发就基本宣布失败了
 我之前只写过单端Mod(Port加载器只手动Port) 所以需要测试一下技术可行性 最坏的可能性就是没法做双端 那么只能Fabric和Forge二选一了(我个人倾向使用Forge 只需手搓一个类Apoli 就能享受到Forge的高级API 后续开发会十分舒服)
 
