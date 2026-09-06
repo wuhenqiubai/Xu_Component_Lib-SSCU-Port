@@ -17,7 +17,7 @@ public class XuComponentLibForge {
         // mod event bus：capability 注册 + payload 网络同步注册
         modBus.addListener(new ForgeEventHandler()::registerCaps);
         modBus.addListener(NetworkHandler::register);
-        // game event bus：玩家复活继承
-        NeoForge.EVENT_BUS.register(new ForgeEventHandler());
+        // game event bus：玩家复活继承（static method ref，只挂 onPlayerClone，避免连坐 @SubscribeEvent 的 registerCaps 到 game bus）
+        NeoForge.EVENT_BUS.addListener(ForgeEventHandler::onPlayerClone);
     }
 }
