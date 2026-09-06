@@ -5,8 +5,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.neoforge.capabilities.EntityCapability;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
 import xu_mod.xu_component_lib.XuComponentLib;
 import xu_mod.xu_component_lib.api.ComponentAPI;
 import xu_mod.xu_component_lib.api.ComponentType;
@@ -14,7 +15,6 @@ import xu_mod.xu_component_lib.api.SerializableComponent;
 import xu_mod.xu_component_lib.forge.capability.CapabilityRegistry;
 import xu_mod.xu_component_lib.forge.capability.ComponentCapability;
 import xu_mod.xu_component_lib.forge.network.ComponentSyncPacket;
-import xu_mod.xu_component_lib.forge.network.NetworkHandler;
 
 import java.util.function.Function;
 
@@ -30,14 +30,16 @@ public class PlatformImpl {
     @SuppressWarnings("unchecked")
     public static <T> SerializableComponent<T> getComponent(ComponentType<T> type, T owner, ResourceLocation id) {
         if (type == ComponentAPI.PLAYER && owner instanceof Player player) {
-            Capability<ComponentCapability<Player>> cap = CapabilityRegistry.getPlayerCap(id);
+            EntityCapability<ComponentCapability<Player>, @Nullable Void> cap = CapabilityRegistry.getPlayerCap(id);
             if (cap == null) return null;
-            return (SerializableComponent<T>) (Object) player.getCapability(cap).map(ComponentCapability::getComponent).orElse(null);
+            ComponentCapability<Player> compCap = player.getCapability(cap);
+            return compCap == null ? null : (SerializableComponent<T>) (Object) compCap.getComponent();
         }
         if (type == ComponentAPI.ENTITY && owner instanceof LivingEntity entity) {
-            Capability<ComponentCapability<LivingEntity>> cap = CapabilityRegistry.getEntityCap(id);
+            EntityCapability<ComponentCapability<LivingEntity>, @Nullable Void> cap = CapabilityRegistry.getEntityCap(id);
             if (cap == null) return null;
-            return (SerializableComponent<T>) (Object) entity.getCapability(cap).map(ComponentCapability::getComponent).orElse(null);
+            ComponentCapability<LivingEntity> compCap = entity.getCapability(cap);
+            return compCap == null ? null : (SerializableComponent<T>) (Object) compCap.getComponent();
         }
         throw new AssertionError();
     }
@@ -45,24 +47,24 @@ public class PlatformImpl {
     public static <T> void syncComponent(ComponentType<T> type, T owner, ResourceLocation id) {
         if (type == ComponentAPI.PLAYER && owner instanceof Player player) {
             if (player.level().isClientSide) return;
-            Capability<ComponentCapability<Player>> cap = CapabilityRegistry.getPlayerCap(id);
+            EntityCapability<ComponentCapability<Player>, @Nullable Void> cap = CapabilityRegistry.getPlayerCap(id);
             if (cap == null) return;
-            player.getCapability(cap).ifPresent(compCap -> {
-                CompoundTag syncData = compCap.getSyncData();
-                ComponentSyncPacket packet = new ComponentSyncPacket(player.getId(), id, syncData, true);
-                NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player), packet);
-            });
+            ComponentCapability<Player> compCap = player.getCapability(cap);
+            if (compCap == null) return;
+            CompoundTag syncData = compCap.getSyncData();
+            ComponentSyncPacket packet = new ComponentSyncPacket(player.getId(), id, syncData, true);
+            PacketDistributor.sendToPlayer((ServerPlayer) player, packet);
             return;
         }
         if (type == ComponentAPI.ENTITY && owner instanceof LivingEntity entity) {
             if (entity.level().isClientSide) return;
-            Capability<ComponentCapability<LivingEntity>> cap = CapabilityRegistry.getEntityCap(id);
+            EntityCapability<ComponentCapability<LivingEntity>, @Nullable Void> cap = CapabilityRegistry.getEntityCap(id);
             if (cap == null) return;
-            entity.getCapability(cap).ifPresent(compCap -> {
-                CompoundTag syncData = compCap.getSyncData();
-                ComponentSyncPacket packet = new ComponentSyncPacket(entity.getId(), id, syncData, false);
-                NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), packet);
-            });
+            ComponentCapability<LivingEntity> compCap = entity.getCapability(cap);
+            if (compCap == null) return;
+            CompoundTag syncData = compCap.getSyncData();
+            ComponentSyncPacket packet = new ComponentSyncPacket(entity.getId(), id, syncData, false);
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(entity, packet);
             return;
         }
         throw new AssertionError();
