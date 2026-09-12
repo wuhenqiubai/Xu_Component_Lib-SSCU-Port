@@ -1,5 +1,68 @@
 ## 此处是面对ShapeShifterCurse-UnofficialPort的移植，本Fork仅进行高版本移植，所有功能版权归属原作者Xu233333所有
 
+> ⚠️ **注意**：下方「原作者说明」一节是原作者 Xu233333 在 **1.20.1 / Forge** 时期写的，其中的**平台名（Forge）、Gradle 配置、版本号均已过时**，请以本节的当前状态为准。原文保留未改，仅作设计意图参考。
+
+---
+
+## 当前状态（Fork，1.21.1）
+
+**目标平台**：`1.21.1 × Fabric + NeoForge`（Architectury 多平台）—— **不是 Forge**。
+
+| 依赖 | 版本 |
+|---|---|
+| Minecraft | 1.21.1 |
+| 平台 | `enabled_platforms=fabric,neoforge` |
+| Architectury | 13.0.11 |
+| NeoForge | 21.1.248 |
+| Fabric Loader / API | 0.19.3 / 0.116.15+1.21.1 |
+| CCA | 6.1.3 |
+| mod_version | `1.0.0`（原作者文档里写的 `1.0.0-alpha` 已过时） |
+
+### 模块分层
+
+| 模块 | 内容 |
+|---|---|
+| `common/` | 平台无关 API：`ComponentAPI`、`ComponentType`、`ComponentProvider`、`SerializableComponent`、`ComponentInitializer`；平台差异经 `Platform`（`@ExpectPlatform` 三方法：`registerComponent` / `getComponent` / `syncComponent`）下沉 |
+| `fabric/` | `ComponentSystemImpl_CCA`（挂在 CCA 的 `cardinal-components-entity` entrypoint 上）、`PlayerComponentBase` / `EntityComponentBase` |
+| `neoforge/` | `capability/`（`EntityCapability.createVoid` + `RegisterCapabilitiesEvent.registerEntity`）、`network/`（`ComponentSyncPacket` + `PayloadRegistrar.playToClient`） |
+
+### 与原作者文档（1.20.1 / Forge）的差异
+
+| 原文 | 现状 |
+|---|---|
+| `@Mod` + `MinecraftForge.EVENT_BUS` + `FMLCommonSetupEvent` | NeoForge：`@Mod` 构造器注入 `IEventBus`，`modBus.addListener(...)`；Capability 走 `RegisterCapabilitiesEvent` |
+| Forge Capability（`CapabilityManager` / `ICapabilityProvider`） | **NeoForge 已把 Capability 拆改**：用 `EntityCapability.createVoid(id, clazz)`，一个组件 id 一个 capability |
+| Gradle `fg.deobf(...)` + flatDir「本地导入」 | Architectury 多平台工程；`settings.gradle` 已移除原作者时期的 `mavenCent` |
+| 版本号 `1.0.0-alpha` | `1.0.0` |
+
+### API 骨架未变（原文示例的写法基本仍适用）
+
+- 注册：`ComponentAPI.registerComponent_Provider(ComponentAPI.PLAYER, id, PlayerData::new)`
+- 取用：`ComponentProvider.getComponent(owner)` / `syncComponent(owner)`
+- 实现：`SerializableComponent<T>` 的四个方法 —— `save` / `load`（各带 `boolean fromSync`）、`init(T)`、`onRespawn(old, new)`
+
+**原文示例里对不上的两处**：
+- `@Override public static void init()` —— 现接口**没有**这个方法
+- `PlayerData.initComponent()` —— 现 API 中不存在（注册直接走 `ComponentAPI.registerComponent_Provider`）
+
+### 使用者的注册流程（Fabric）
+
+1. 实现 `ComponentInitializer`，在 `registerComponent()` 里调 `ComponentAPI.registerComponent_Provider(...)`
+2. 在**自己的** `fabric.mod.json` 声明 `"xu_component_lib": ["your.RegPlayerData"]` entrypoint
+
+> 这个 entrypoint 名仍是 `xu_component_lib`：库侧 `ComponentSystemImpl_CCA` 会扫它并逐个调 `registerComponent()`
+> （`ComponentSystemImpl_CCA.KEY = "xu_component_lib"`），所以原文档的这套流程**依然有效**。
+
+### 已知未完成
+
+- **NeoForge 侧暂无与 Fabric `xu_component_lib` entrypoint 等价的自动扫描**：`XuComponentLib.init()` 目前是空实现，
+  组件注册需在 `CapabilityRegistry.registerAll()`（能力注册）**之前**自行完成，否则 capability 注册时拿不到组件表。
+
+---
+
+<details>
+<summary><b>以下为原作者 Xu233333 的原始 README（1.20.1 / Forge 时期，保留未改）</b></summary>
+
 算是SSC双端版本开发的第1步 如果失败了SSC双端版本的开发就基本宣布失败了
 我之前只写过单端Mod(Port加载器只手动Port) 所以需要测试一下技术可行性 最坏的可能性就是没法做双端 那么只能Fabric和Forge二选一了(我个人倾向使用Forge 只需手搓一个类Apoli 就能享受到Forge的高级API 后续开发会十分舒服)
 
@@ -186,3 +249,5 @@ dependencies {
     }
 }
 ```
+
+</details>
